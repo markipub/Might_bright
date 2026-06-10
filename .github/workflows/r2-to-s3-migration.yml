@@ -1,0 +1,49 @@
+name: R2 → S3 Monthly Migration
+
+on:
+  # Runs at 00:00 UTC on the 1st of every month
+  schedule:
+    - cron: "0 0 1 * *"
+
+  # Allow triggering manually from the Actions tab (useful for testing)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run only — list what would be copied without writing to S3"
+        type: boolean
+        default: false
+
+jobs:
+  migrate:
+    name: Migrate R2 → S3
+    runs-on: ubuntu-latest
+    timeout-minutes: 360   # 6-hour safety cap for large buckets
+
+    env:
+      AWS_ACCESS_KEY_ID:       ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY:   ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      CF_R2_ACCESS_KEY_ID:     ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+      CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+      CF_R2_ENDPOINT_URL:      ${{ secrets.CF_R2_ENDPOINT_URL }}
+      CF_R2_BUCKET_NAME:       ${{ secrets.CF_R2_BUCKET_NAME }}
+      S3_BUCKET_NAME:          ${{ secrets.S3_BUCKET_NAME }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install boto3
+
+      - name: Run migration (scheduled / normal)
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+        run: python scripts/migrate_r2_to_s3.py
+
+      - name: Run migration (dry-run)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        run: python scripts/migrate_r2_to_s3.py --dry-run
