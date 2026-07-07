@@ -1,9 +1,9 @@
 name: R2 → S3 Monthly Migration
 
 on:
-  # Runs at 00:00 UTC on the 1st of every month
+  # Runs at 00:00 UTC on every 10 days
   schedule:
-    - cron: "0 0 1 * *"
+    - cron: "0 0 */10 * *"
 
   # Allow triggering manually from the Actions tab (useful for testing)
   workflow_dispatch:
